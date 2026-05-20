@@ -1,1 +1,5 @@
 # syslab
+
+Senior project for Computer Systems Lab at TJHSST. We trained two drones to play tag against each other in simulation using PPO self-play (one tries to catch, one tries to escape) and then deployed the tracker policy onto a real DJI Tello using AprilTags as the visual target. The tracker got to about 95% capture rate in sim by the end of training and the policy transferred to the real drone without any retraining or fine-tuning.
+pybullet_train.py runs the training loop -- it saves/creates tracker/pursuer.zip, evader.zip, the matching *_vecnorm.pkl files, and creates a training_state.json so you can resume if you ctrl-C out. Pass --demo to watch trained agents in the PyBullet GUI with the FOV cone drawn. deploy.py loads zip models and flies the actual tello drone using the trained policy with apriltag detection . Default is headless for speed -- use --display to see the camera feed, --dry-run to test with a laptop webcam, --motors-off to test the policy without takeoff, and --record file.avi to save the annotated video. You'll need stable-baselines3, pybullet, gymnasium, djitellopy, pupil-apriltags, pyav, opencv-python, and numpy  
+
