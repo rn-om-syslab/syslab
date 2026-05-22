@@ -24,7 +24,7 @@ deploy.py           main deployment entrypoint
 
 ## training
 
-The simulator is a custom Gymnasium environment built on PyBullet. Two agents share the arena: a tracker (green) and an evader (red). Each one observes a nine-dimensional vector: relative position of the opponent in the observer's body frame, the observer's own velocity, and the opponent's estimated velocity. Actions are continuous 3D velocity commands in the range [-1, +1] on each axis.
+The simulator is a custom Gymnasium environment built on PyBullet. Two agents share the arena: a tracker and evader   Each one observes a nine-dimensional vector: relative position of the opponent in the observer's body frame, the observer's own velocity, and the opponent's estimated velocity. Actions are continuous 3D velocity commands in the range [-1, +1] on each axis.
 
 Training alternates between the two agents. One trains with PPO while the other sits frozen as the opponent, then they swap. This is standard self-play. It means the reward curve oscillates by design,  whatever agent is currently learning climbs, then the roles flip and it drops back. 
 
@@ -54,7 +54,7 @@ Then:
 python pybullet_train.py
 ```
 
-That starts from scratch. To resume a previous run, the script checks for `training_state.json` automatically and continues from whatever round it was on. To watch the trained agents run in the PyBullet GUI with the FOV cone drawn:
+That starts the sim from scratch completely;  to resume a previous run, the script checks for `training_state.json` automatically and continues from whatever round it was on. To watch the trained agents run in the PyBullet GUI with the FOV cone drawn:
 
 ```bash
 python pybullet_train.py --demo
@@ -110,18 +110,6 @@ Useful flags:
 When the tag goes out of frame (the dominant real-world failure mode), the drone rotates slowly toward the last-known bearing until detection re-acquires, which usually takes one to two seconds if the target is still in the room.
 
 ---
-
-## Things that did not work
-
-A few dead ends that cost real time:
-
-**AirSim.** We started there. The `airgym` package wouldn't install cleanly against current Python versions, the gym-to-gymnasium migration broke most of the example code, and the Microsoft Python client had been deprecated. About three weeks went into this before we moved to PyBullet, which trains an order of magnitude faster anyway because it drops the Unreal renderer.
-
-**Full-state observation.** Giving both agents complete knowledge of each other's position produced an omniscient tracker and an evader that couldn't do anything useful. The asymmetric vision-limited setup came out of that failure.
-
-**GPS for indoor positioning.** Consumer modules give meter-scale errors in open sky and worse indoors. Not useful at the scales we were working at.
-
-**The custom build.** The original platform was a 5-inch FPV quadrotor with a Jetson Orin Nano for onboard compute. A wiring fault during final assembly shorted the power distribution board and destroyed the flight controller and the ESC. We swapped to the Tello EDU for the demonstration. The BOM for the custom build is in the paper appendix if you want to attempt it; the Jetson would let the policy and perception pipeline run onboard instead of over Wi-Fi, which would reduce the latency problem substantially.
 
 ## Future directions
 
