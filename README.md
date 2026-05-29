@@ -1,17 +1,17 @@
-# syslab snr rsrch 
+
 
 demo vid https://www.youtube.com/watch?v=2D2NHBw0L-0
-# Multi-Agent UAV Capture and Evasion w/ Adversarial RL
+# Multi-Agent UAV Capture and Evasion with Adversarial RL
 
-snr rsrch project for Computer Systems Research Lab (SysLab) at TJHSST, May 2026. Students Owen Murphy and Rishikesh Narayana, co26, advised by Dr. Yilmaz and Dr. Gabor.
+ This is our Senior Research Project for the Computer Systems Research Lab (SysLab) at TJHSST, May 2026. Students Owen Murphy and Rishikesh Narayana, co26, advised by Dr. Yilmaz and Dr. Gabor.
 
-Two drones trained to play tag against each other. One tries to catch, one tries to escape. Neither was told how. We trained them against each other in simulation using PPO self-play inside a custom PyBullet environment, then deployed the tracker policy onto a real DJI Tello EDU using AprilTag detection as the perception layer. The tracker hit 95% capture rate in sim after three million timesteps, and the same policy file, no retraining, no fine-tuning, ran on the actual drone and tracked a moving target + a manually controlled evader.
+Two drones trained to play tag against each other. One tries to catch and one tries to escape. We trained them against each other in simulation using PPO self-play inside a custom PyBullet environment, then deployed the tracker policy onto a real DJI Tello EDU using AprilTag detection as the perception layer. The tracker hit 95% capture rate in sim after three million timesteps, and the same policy file, no retraining, no fine-tuning, ran on the actual drone and tracked a moving target + a manually controlled evader.
 
 The full paper is in `docs/`.
 
 ---
 
-## what's in the repo
+## Content
 
 ```
 sim/            PyBullet training environment and self-play loop
@@ -22,19 +22,19 @@ pybullet_train.py   main training entrypoint
 deploy.py           main deployment entrypoint
 ```
 
-## training
+## Training
 
-The simulator is a custom Gymnasium environment built on PyBullet. Two agents share the arena: a tracker and evader   Each one observes a nine-dimensional vector: relative position of the opponent in the observer's body frame, the observer's own velocity, and the opponent's estimated velocity. Actions are continuous 3D velocity commands in the range [-1, +1] on each axis.
+The simulation is a custom Gymnasium environment built on PyBullet. Two agents share the arena: a tracker and evader   Each one observes a nine-dimensional vector: relative position of the opponent in the observer's body frame, the observer's own velocity, and the opponent's estimated velocity. Actions are continuous 3D velocity commands in the range [-1, +1] on each axis.
 
-Training alternates between the two agents. One trains with PPO while the other sits frozen as the opponent, then they swap. This is standard self-play. It means the reward curve oscillates by design,  whatever agent is currently learning climbs, then the roles flip and it drops back. 
+Training alternates between the two agents. One trains with PPO while the other sits frozen as the opponent, then they swap. This is standard self-play and therefore the reward curve oscillates by design,  whatever agent is currently learning climbs, then the roles flip and it drops back. 
 
 A few things turned out to be load-bearing for getting non-trivial behavior:
 
-**Vision-limited observation.** Early runs gave both agents full state. The tracker became effectively omniscient, the evader never developed any real strategy, and training stalled fast. Restricting the tracker to a cone-shaped FOV matching the forward camera geometry on the Tello fixed this. Suddenly the evader had something to actually optimize for, which was just breaking line of sight, and both policies got interesting.
+**Vision-limited observation** Early runs gave both agents full state. The tracker became effectively omniscient, the evader never developed any real strategy, and training stalled fast. Restricting the tracker to a cone-shaped FOV matching the forward camera geometry on the Tello fixed this. Suddenly the evader had something to actually optimize for, which was just breaking line of sight, and both policies got interesting.
 
-**Curriculum.** Without it both agents locked onto trivial solutions. The evader sprinted straight away, the tracker trailed at a fixed offset, neither one ever discovered a feint or a dodge. The curriculum shrinks the starting separation progressively across rounds, forcing close-range engagements where constant-velocity doesn't cut it and it forces both drones to learn stronger behaivors because of the closened region.  Around round six it also increases the evader's max speed by 10% and drops a two-meter cylindrical obstacle at the arena center. The evader figures out how to transit behind the cylinder to break line of sight, and then reverses heading sharply once it does. This was done in an effort to induce more advanced behaviors from each agent.
+**Curriculum learning** Without it both agents locked onto trivial solutions. The evader sprinted straight away, the tracker trailed at a fixed offset, neither one ever discovered a feint or a dodge. The curriculum shrinks the starting separation progressively across rounds, forcing close-range engagements where constant-velocity doesn't cut it and it forces both drones to learn stronger behaivors because of the closened region.  Around round six it also increases the evader's max speed by 10% and drops a two-meter cylindrical obstacle at the arena center. The evader figures out how to transit behind the cylinder to break line of sight, and then reverses heading sharply once it does. This was done in an effort to induce more advanced behaviors from each agent.
 
-**Reward shaping.** The tracker gets rewarded on a negative-tanh of distance (so the gradient stays nonzero at long range), a per-step closing-rate bonus, a term for keeping the evader near the center of its FOV, and a big terminal bonus for captures inside 0.7m. The evader gets rewarded for distance, for opening distance step over step, and specifically for not holding a constant heading across consecutive steps, which is what kills the straight-line collapse. Both have a smoothness penalty on velocity commands, which is important for transfer because it discourages high-frequency oscillation that the Tello's flight controller cannot execute.
+**Reward functions** The tracker gets rewarded on a negative-tanh of distance (so the gradient stays nonzero at long range), a per-step closing-rate bonus, a term for keeping the evader near the center of its FOV, and a big terminal bonus for captures inside 0.7m. The evader gets rewarded for distance, for opening distance step over step, and specifically for not holding a constant heading across consecutive steps, which is what kills the straight-line collapse. Both have a smoothness penalty on velocity commands, which is important for transfer because it discourages high-frequency oscillation that the Tello's flight controller cannot execute.
 
  The loop saves to one directory: tracker.zip, evader.zip, the matching VecNorm pickle files, timestamped checkpoints, the SB3 log directory, and a `training_state.json` with the current round and step count. If you kill it and restart it picks up from that JSON file w/ rounds and everything
 
@@ -68,18 +68,16 @@ The demo loads the latest checkpoints, disables training, and renders the scene.
 
 The policy file doesn't change at all between simulation and hardware. The gap gets closed on the perception side instead, with three components added between the raw camera output and the policy input.
 
-**Inter-frame velocity prediction.** The H.264 stream from the Tello arrives with nontrivial jitter and the AprilTag detection pipeline runs at roughly 15 Hz against a 20 Hz control loop, which means the observation feeding the network is frequently 50 to 100 ms stale. We extrapolate the evader's relative position forward in time between detections using the most recent smoothed velocity estimate. The prediction is capped at 500 ms; past that it falls back to the last confirmed detection rather than guessing further.
+**Inter-frame velocity prediction** The H.264 stream from the Tello arrives with non-trivial jitter and the AprilTag detection pipeline runs at roughly 15 Hz against a 20 Hz control loop, which means the observation feeding the network is frequently 50 to 100 ms stale. We take the evader's relative position forward in time between detections using the most recent smoothed velocity estimate. The prediction is capped at 500 ms; past that it falls back to the last confirmed detection rather than guessing further and further.
 
-**Action smoothing.** A one-pole low-pass filter with coefficient α=0.15 sits on the policy output before the velocity command goes to the drone. Lower values cause visible jitter in the Tello's attitude. Higher values add enough lag that the tracker falls behind on sharp turns. 0.15 was found by hand across a few test flights.
+**Action smoothing** A one-pole low-pass filter with coefficient α=0.15 sits on the policy output before the velocity command goes to the drone. Lower values cause visible jitter in the Tello's attitude. Higher values add enough lag that the tracker falls behind on sharp turns. 
 
-**Yaw controller.** The Tello has only a forward-facing camera. The trained policy doesn't know to rotate to keep the target in frame, so an auxiliary proportional yaw controller runs in parallel with the velocity command, rotating the drone in body-frame yaw to keep the AprilTag near the image center. Gain 90 deg/s per radian of horizontal bearing error, 0.04 radian deadband. It runs alongside the network output, not through it, so the policy itself never had to learn yaw control.
-
+**Yaw controller** The Tello has only a forward-facing camera. The trained policy doesn't know to rotate to keep the target in frame, so an auxiliary proportional yaw controller runs in parallel with the velocity command, rotating the drone in body-frame yaw to keep the AprilTag near the image center. Gain 90 deg/s per radian of horizontal bearing error, 0.04 radian deadband. It runs alongside the network output, not through it, so the policy itself never had to learn yaw control.
 One thing that helped a lot during training was injecting uniform latency jitter of ±30 ms into the simulator step time. The policy never saw a perfectly synchronous observation during training, which probably explains why it held up reasonably well against the actual Wi-Fi-induced delays on the real drone.
 
 ---
 
-## Running deployment
-
+## Running deployment of IRL transfer
 You need a DJI Tello EDU, a printed AprilTag (family tag36h11, 10 cm side length) mounted on whatever is serving as the evader, and a laptop that can connect to the Tello over Wi-Fi.
 
 Additional dependencies on top of the training stack:
